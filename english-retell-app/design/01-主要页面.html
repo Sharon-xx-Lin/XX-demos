@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>workflow Brainstorming</title>
+  <style>
+    /* ─────────────────────────────────────────────────────────────
+       workflow Design Token System
+       基于 workflow 官方 Design Spec，使用 --f-* 前缀命名。
+       默认 dark 主题，通过 data-theme="light" 切换亮色模式。
+       通过宿主 IframeBox 的 postMessage(ENV_UPDATE) 自动同步主题和语言。
+       ───────────────────────────────────────────────────────────── */
+
+    :root {
+      /* ── 字体族 ── */
+      --f-font-family-zh: 'PingFang SC', 'Noto Sans SC', 'Hiragino Sans GB', 'Helvetica Neue', Arial, sans-serif;
+      --f-font-family-en: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --f-font-family-code: 'JetBrains Mono', 'SF Mono', 'Menlo', 'Consolas', monospace;
+      --f-font-family-display: 'PingFang SC', 'Noto Sans SC', 'SF Pro Display', 'Inter', system-ui, sans-serif;
+
+      --f-font-weight-regular: 400;
+      --f-font-weight-medium: 500;
+      --f-font-weight-semibold: 600;
+      --f-font-weight-bold: 700;
+      --f-font-weight-code: 450;
+
+      /* ── 间距 ── */
+      --f-spacer-0: 0px;
+      --f-spacer-4: 4px;
+      --f-spacer-6: 6px;
+      --f-spacer-8: 8px;
+      --f-spacer-12: 12px;
+      --f-spacer-16: 16px;
+      --f-spacer-24: 24px;
+      --f-spacer-32: 32px;
+      --f-spacer-40: 40px;
+
+      /* ── 圆角 ── */
+      --f-radius-2: 2px;
+      --f-radius-4: 4px;
+      --f-radius-6: 6px;
+      --f-radius-8: 8px;
+      --f-radius-10: 10px;
+      --f-radius-full: 9999px;
+
+      /* ── 动效 ── */
+      --f-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+      --f-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+      --f-dur-fast: 120ms;
+      --f-dur-base: 200ms;
+      --f-dur-slow: 320ms;
+    }
+
+    /* ── Dark 主题（默认） ── */
+    :root,
+    [data-theme="dark"] {
+      --f-bg-bg-base-default: #202328;
+      --f-bg-bg-base-secondary: #141517;
+      --f-bg-bg-base-tertiary: #212225;
+      --f-bg-bg-overlay-l1: #e0e6f20a;
+      --f-bg-bg-overlay-l2: #e0e6f20f;
+      --f-bg-bg-overlay-l3: #e0e6f214;
+      --f-bg-bg-overlay-l4: #e0e6f21f;
+      --f-bg-bg-menu: #202123;
+      --f-bg-bg-brand: #62cbff;
+      --f-bg-bg-brand-hover: #34b3f2;
+      --f-bg-bg-brand-sub: #1577f9;
+      --f-bg-bg-invert: #dadde5;
+
+      --f-text-text-default: #eeeeee;
+      --f-text-text-secondary: #9599a6;
+      --f-text-text-tertiary: #666b75;
+      --f-text-text-disabled: #555a63;
+      --f-text-text-brand: #25b6ff;
+      --f-text-text-onbrand: #0c0c0d;
+
+      --f-icon-icon-default: #dadce1;
+      --f-icon-icon-secondary: #9599a6;
+      --f-icon-icon-tertiary: #666b75;
+      --f-icon-icon-brand: #25b6ff;
+
+      --f-border-border-neutral-l1: #242428;
+      --f-border-border-neutral-l2: #303135;
+      --f-border-border-neutral-l3: #39393e;
+      --f-border-border-brand: #25b6ff;
+      --f-border-border-brand-sub: #1577f9;
+
+      --f-accent-accent-teal: #2dd288;
+      --f-accent-accent-coral: #ff9392;
+      --f-accent-accent-amber: #dcb364;
+      --f-accent-accent-cyan: #04cbe5;
+      --f-accent-accent-blue: #7bb8ff;
+      --f-accent-accent-magenta: #ec93ff;
+      --f-accent-accent-violet: #bfa5ff;
+
+      --f-status-success-default: #33c192;
+      --f-status-alert-default: #e9b721;
+      --f-status-warning-default: #f38612;
+      --f-status-error-default: #f65a5a;
+      --f-status-primary-default: #387bff;
+
+      --f-tag-tag-blue-text: #68b1ee;
+      --f-tag-tag-blue-bg: #6dbdff33;
+      --f-tag-tag-blue-border: #6dbdff4d;
+      --f-tag-tag-green-text: #61c490;
+      --f-tag-tag-green-bg: #60dc9a33;
+      --f-tag-tag-green-border: #60dc9a4d;
+      --f-tag-tag-red-text: #f07676;
+      --f-tag-tag-red-bg: #f7606029;
+      --f-tag-tag-red-border: #f760604d;
+      --f-tag-tag-purple-text: #a291f0;
+      --f-tag-tag-purple-bg: #a48fff1f;
+      --f-tag-tag-purple-border: #a48fff4d;
+
+      --f-shadow-elevation-100:
+        0 0.5px 0 0 rgba(255, 255, 255, 0.06) inset,
+        0 0.5px 0 0 rgba(255, 255, 255, 0.06),
+        0 2px 6px 0 rgba(0, 0, 0, 0.2);
+      --f-shadow-elevation-200:
+        0 0.5px 0 0 rgba(255, 255, 255, 0.06) inset,
+        0 4px 8px 0 rgba(0, 0, 0, 0.3);
+      --f-shadow-elevation-300:
+        0 0.5px 0 0 rgba(255, 255, 255, 0.08) inset,
+        0 6px 12px 0 rgba(0, 0, 0, 0.4);
+    }
+
+    /* ── Light 主题 ── */
+    [data-theme="light"] {
+      --f-bg-bg-base-default: #f4f4f4;
+      --f-bg-bg-base-secondary: #ffffff;
+      --f-bg-bg-base-tertiary: #edeef0;
+      --f-bg-bg-overlay-l1: #8888880f;
+      --f-bg-bg-overlay-l2: #8888881a;
+      --f-bg-bg-overlay-l3: #88888824;
+      --f-bg-bg-overlay-l4: #88888833;
+      --f-bg-bg-menu: #ffffff;
+      --f-bg-bg-brand: #58c7ff;
+      --f-bg-bg-brand-hover: #7dd4ff;
+      --f-bg-bg-brand-sub: #4495ff;
+      --f-bg-bg-invert: #36393d;
+
+      --f-text-text-default: #1a1a1a;
+      --f-text-text-secondary: #666666;
+      --f-text-text-tertiary: #8a9096;
+      --f-text-text-disabled: #b2b2b2;
+      --f-text-text-brand: #009ce9;
+      --f-text-text-onbrand: #090a0b;
+
+      --f-icon-icon-default: #31353a;
+      --f-icon-icon-secondary: #5b6066;
+      --f-icon-icon-tertiary: #8a9096;
+      --f-icon-icon-brand: #58c7ff;
+
+      --f-border-border-neutral-l1: #e9eaed;
+      --f-border-border-neutral-l2: #e4e6e8;
+      --f-border-border-neutral-l3: #dfdfe0;
+      --f-border-border-brand: #58c7ff;
+      --f-border-border-brand-sub: #4495ff;
+
+      --f-accent-accent-teal: #00b983;
+      --f-accent-accent-coral: #ff6b45;
+      --f-accent-accent-amber: #f2a90c;
+      --f-accent-accent-cyan: #00b6f5;
+      --f-accent-accent-blue: #3f85ff;
+      --f-accent-accent-magenta: #f53cff;
+      --f-accent-accent-violet: #9570ff;
+
+      --f-status-success-default: #15a877;
+      --f-status-alert-default: #fec700;
+      --f-status-warning-default: #ff9b36;
+      --f-status-error-default: #fa5246;
+      --f-status-primary-default: #2f74ff;
+
+      --f-tag-tag-blue-text: #4999e3;
+      --f-tag-tag-blue-bg: #389efe1f;
+      --f-tag-tag-blue-border: #389efe4d;
+      --f-tag-tag-green-text: #32a767;
+      --f-tag-tag-green-bg: #3ab6721f;
+      --f-tag-tag-green-border: #3ab6724d;
+      --f-tag-tag-red-text: #dc5353;
+      --f-tag-tag-red-bg: #ff3e3e1f;
+      --f-tag-tag-red-border: #ff3e3e47;
+      --f-tag-tag-purple-text: #735ed3;
+      --f-tag-tag-purple-bg: #8b71ff1f;
+      --f-tag-tag-purple-border: #8b71ff3d;
+
+      --f-shadow-elevation-100:
+        0 0 6px 0 rgba(93, 113, 121, 0.06),
+        0 2px 3px 0 rgba(93, 113, 121, 0.1);
+      --f-shadow-elevation-200:
+        0 2px 6px 0 rgba(93, 113, 121, 0.08),
+        0 2px 12px 0 rgba(93, 113, 121, 0.14);
+      --f-shadow-elevation-300:
+        0 0 2px 0 rgba(93, 113, 121, 0.16),
+        0 4px 12px 0 rgba(93, 113, 121, 0.12),
+        0 6px 20px 0 rgba(174, 185, 189, 0.2);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Semantic Aliases — 向后兼容 + fragment 作者快捷引用
+       将 workflow 官方 token 映射为更简短的语义别名。
+       fragment <style> 块中可使用这些别名覆盖。
+       ───────────────────────────────────────────────────────────── */
+    :root,
+    [data-theme="dark"],
+    [data-theme="light"] {
+      --bg-app:          var(--f-bg-bg-base-secondary);
+      --bg-surface:      var(--f-bg-bg-base-default);
+      --bg-subtle:       var(--f-bg-bg-base-tertiary);
+      --bg-muted:        var(--f-bg-bg-overlay-l2);
+      --border:          var(--f-border-border-neutral-l2);
+      --border-strong:   var(--f-border-border-neutral-l3);
+      --text-primary:    var(--f-text-text-default);
+      --text-secondary:  var(--f-text-text-secondary);
+      --text-tertiary:   var(--f-text-text-tertiary);
+      --accent:          var(--f-bg-bg-brand);
+      --accent-soft:     var(--f-bg-bg-overlay-l3);
+      --accent-strong:   var(--f-bg-bg-brand-hover);
+      --success:         var(--f-status-success-default);
+      --warning:         var(--f-status-warning-default);
+      --error:           var(--f-status-error-default);
+      --selected-bg:     var(--f-bg-bg-overlay-l3);
+      --selected-border: var(--f-border-border-brand);
+      --selected-ring:   rgba(37, 182, 255, 0.22);
+
+      --font-display:    var(--f-font-family-display);
+      --font-body:       var(--f-font-family-zh);
+      --font-mono:       var(--f-font-family-code);
+
+      --radius-xs:       var(--f-radius-6);
+      --radius-sm:       var(--f-radius-8);
+      --radius-md:       var(--f-radius-10);
+      --radius-lg:       18px;
+      --radius-xl:       24px;
+      --radius-pill:     var(--f-radius-full);
+
+      --shadow-1:        var(--f-shadow-elevation-100);
+      --shadow-2:        var(--f-shadow-elevation-200);
+      --shadow-3:        var(--f-shadow-elevation-300);
+      --shadow-focus:    0 0 0 4px var(--selected-ring);
+
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-5: 1.5rem;
+      --space-6: 2rem;
+      --space-7: 3rem;
+      --space-8: 4rem;
+
+      --ease-out:        var(--f-ease-out);
+      --ease-in-out:     var(--f-ease-in-out);
+      --dur-fast:        var(--f-dur-fast);
+      --dur-base:        var(--f-dur-base);
+      --dur-slow:        var(--f-dur-slow);
+    }
+
+    /* ── Light 别名覆盖（selected-ring 需要跟随主题变化） ── */
+    [data-theme="light"] {
+      --selected-ring: rgba(0, 156, 233, 0.18);
+    }
+
+    /* ── 字体族切换：英文通过 lang 属性 ── */
+    html[lang="en"],
+    html[lang^="en-"] {
+      --font-body: var(--f-font-family-en);
+      --font-display: var(--f-font-family-en);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Reset & base
+       ───────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-app);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      line-height: 1.6;
+      font-size: 15px;
+      letter-spacing: -0.005em;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    ::selection { background: var(--accent-soft); color: var(--accent-strong); }
+
+    /* ─────────────────────────────────────────────────────────────
+       Layout chrome (header / main / indicator)
+       ───────────────────────────────────────────────────────────── */
+    .header {
+      background: var(--bg-surface);
+      padding: var(--space-3) var(--space-6);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      backdrop-filter: saturate(1.2);
+    }
+    .header h1 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.02em;
+    }
+    .header .status {
+      font-size: 0.72rem;
+      color: var(--success);
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-weight: 500;
+    }
+    .header .status::before {
+      content: '';
+      width: 7px; height: 7px;
+      background: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px rgba(51, 193, 146, 0.18);
+    }
+
+    .main { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+    .main::-webkit-scrollbar { width: 10px; height: 10px; }
+    .main::-webkit-scrollbar-track { background: transparent; }
+    .main::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: var(--radius-pill);
+      border: 2px solid var(--bg-app);
+    }
+    .main::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+    #claude-content {
+      padding: var(--space-7) var(--space-6);
+      min-height: 100%;
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    .content-section {
+      display: none;
+      animation: fadeInUp var(--dur-slow) var(--ease-out);
+    }
+    .content-section.active { display: block; }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .indicator-bar {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      padding: var(--space-3) var(--space-6);
+      flex-shrink: 0;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-4);
+    }
+    .indicator-bar span {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+    .indicator-bar .selected-text {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    #nav-btn-up, #nav-btn-down {
+      width: 28px; height: 28px;
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      transition: all var(--dur-fast) var(--ease-out);
+    }
+    #nav-btn-up:hover:not(:disabled),
+    #nav-btn-down:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+    #nav-btn-up:disabled, #nav-btn-down:disabled { opacity: 0.35; cursor: not-allowed; }
+    #nav-page-count {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-tertiary);
+      min-width: 2.5rem;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Typography
+       ───────────────────────────────────────────────────────────── */
+    h1, h2, h3, h4, h5 {
+      font-family: var(--font-display);
+      color: var(--text-primary);
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--space-2);
+    }
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: var(--space-1);
+    }
+    h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: var(--space-2);
+    }
+    p { color: var(--text-primary); }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.02rem;
+      margin-bottom: var(--space-6);
+      max-width: 62ch;
+    }
+
+    .section { margin-bottom: var(--space-6); }
+    .label {
+      display: inline-block;
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      margin-bottom: var(--space-2);
+      padding: 2px 8px;
+      background: var(--bg-subtle);
+      border-radius: var(--radius-xs);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.88em;
+      background: var(--bg-subtle);
+      padding: 0.15em 0.4em;
+      border-radius: var(--radius-xs);
+      color: var(--accent-strong);
+    }
+    pre {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      overflow-x: auto;
+      margin-bottom: var(--space-4);
+    }
+    pre code { background: none; padding: 0; color: inherit; }
+
+    /* ─────────────────────────────────────────────────────────────
+       Options (A/B/C choice cards)
+       ───────────────────────────────────────────────────────────── */
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+    .option {
+      position: relative;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4) var(--space-5);
+      cursor: pointer;
+      transition: border-color var(--dur-fast) var(--ease-out),
+                  transform var(--dur-fast) var(--ease-out),
+                  box-shadow var(--dur-base) var(--ease-out),
+                  background var(--dur-fast) var(--ease-out);
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-4);
+      box-shadow: var(--shadow-1);
+    }
+    .option:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-2);
+    }
+    .option.selected {
+      background: var(--selected-bg);
+      border-color: var(--selected-border);
+      box-shadow: var(--shadow-focus), var(--shadow-2);
+    }
+    .option .letter {
+      background: var(--bg-muted);
+      color: var(--text-secondary);
+      width: 2rem; height: 2rem;
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+      transition: all var(--dur-base) var(--ease-out);
+    }
+    .option.selected .letter {
+      background: var(--accent);
+      color: var(--f-text-text-onbrand);
+      transform: scale(1.05);
+    }
+    .option .content { flex: 1; min-width: 0; }
+    .option .content h3 {
+      font-size: 1rem;
+      margin-bottom: var(--space-1);
+    }
+    .option .content p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Cards (visual design options)
+       ───────────────────────────────────────────────────────────── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--space-5);
+    }
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform var(--dur-base) var(--ease-out),
+                  box-shadow var(--dur-base) var(--ease-out),
+                  border-color var(--dur-fast) var(--ease-out);
+      box-shadow: var(--shadow-1);
+      display: flex;
+      flex-direction: column;
+    }
+    .card:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-3);
+    }
+    .card.selected {
+      border-color: var(--selected-border);
+      box-shadow: var(--shadow-focus), var(--shadow-3);
+    }
+    .card-image {
+      background:
+        linear-gradient(135deg, var(--bg-subtle) 0%, var(--bg-muted) 100%);
+      aspect-ratio: 16 / 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .card-body { padding: var(--space-5); }
+    .card-body h3 { margin-bottom: var(--space-1); }
+    .card-body p { color: var(--text-secondary); font-size: 0.9rem; }
+
+    /* ─────────────────────────────────────────────────────────────
+       Mockup containers
+       ───────────────────────────────────────────────────────────── */
+    .mockup {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: var(--space-5);
+      box-shadow: var(--shadow-2);
+    }
+    .mockup-header {
+      background: var(--bg-subtle);
+      padding: var(--space-2) var(--space-4);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    .mockup-header::before {
+      content: '';
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border-strong);
+      box-shadow: 14px 0 0 var(--border-strong), 28px 0 0 var(--border-strong);
+      margin-right: 28px;
+    }
+    .mockup-body { padding: var(--space-5); }
+
+    .mobile-mockup {
+      max-width: 375px;
+      margin: 0 auto var(--space-5) auto;
+      border: 10px solid var(--f-bg-bg-base-secondary);
+      border-radius: 40px;
+      overflow: hidden;
+      background: var(--bg-surface);
+      box-shadow: var(--shadow-3);
+      position: relative;
+    }
+    .mobile-mockup::before {
+      content: '';
+      position: absolute;
+      top: 10px; left: 50%;
+      transform: translateX(-50%);
+      width: 110px; height: 22px;
+      background: var(--f-bg-bg-base-secondary);
+      border-radius: 0 0 14px 14px;
+      z-index: 2;
+    }
+    .mobile-mockup .mockup-header {
+      background: var(--bg-subtle);
+      padding: var(--space-4) var(--space-3) var(--space-2);
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border);
+    }
+    .mobile-mockup .mockup-header::before { display: none; }
+    .mobile-mockup .mockup-body {
+      min-height: 600px;
+      padding: var(--space-5);
+      position: relative;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Layout utilities
+       ───────────────────────────────────────────────────────────── */
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-5);
+    }
+    @media (max-width: 800px) { .split { grid-template-columns: 1fr; } }
+
+    .pros-cons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+      margin: var(--space-4) 0;
+    }
+    .pros, .cons {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      box-shadow: var(--shadow-1);
+    }
+    .pros h4 {
+      color: var(--success);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: var(--space-3);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    .cons h4 {
+      color: var(--error);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: var(--space-3);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    .pros h4::before { content: '✓'; font-size: 1rem; }
+    .cons h4::before { content: '✗'; font-size: 1rem; }
+    .pros ul, .cons ul {
+      margin-left: 1.1rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .pros li, .cons li { margin-bottom: var(--space-1); }
+
+    /* ─────────────────────────────────────────────────────────────
+       Generic elements
+       ───────────────────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: var(--space-5);
+      font-size: 0.9rem;
+      background: var(--bg-surface);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-1);
+    }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: var(--space-3) var(--space-4);
+      text-align: left;
+    }
+    tr:last-child td { border-bottom: none; }
+    th {
+      background: var(--bg-subtle);
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    tr:hover td { background: var(--bg-subtle); }
+
+    ul, ol { padding-left: 1.4rem; margin-bottom: var(--space-4); }
+    li { margin-bottom: var(--space-1); }
+
+    a {
+      color: var(--f-text-text-brand);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color var(--dur-fast);
+    }
+    a:hover { border-bottom-color: var(--f-text-text-brand); }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: var(--space-6) 0;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Wireframe / placeholder
+       ───────────────────────────────────────────────────────────── */
+    .placeholder {
+      background: linear-gradient(
+        90deg,
+        var(--bg-subtle) 0%,
+        var(--bg-muted) 50%,
+        var(--bg-subtle) 100%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 2s linear infinite;
+      border-radius: var(--radius-md);
+      padding: var(--space-6);
+      text-align: center;
+      color: var(--text-tertiary);
+      font-size: 0.85rem;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .mock-nav {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+      color: var(--f-text-text-onbrand);
+      padding: var(--space-3) var(--space-5);
+      display: flex;
+      gap: var(--space-5);
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    }
+    .mock-sidebar {
+      background: var(--bg-subtle);
+      padding: var(--space-4);
+      min-width: 200px;
+      border-right: 1px solid var(--border);
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+    }
+    .mock-content {
+      padding: var(--space-5);
+      flex: 1;
+      min-width: 0;
+    }
+    .mock-button {
+      background: var(--accent);
+      color: var(--f-text-text-onbrand);
+      border: none;
+      padding: var(--space-2) var(--space-4);
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--dur-fast) var(--ease-out);
+      box-shadow: var(--shadow-1);
+    }
+    .mock-button:hover {
+      background: var(--accent-strong);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-2);
+    }
+    .mock-input {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--space-2) var(--space-3);
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+    }
+    .mock-input:focus {
+      outline: none;
+      border-color: var(--f-border-border-brand);
+      box-shadow: var(--shadow-focus);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       workflow Tag styles
+       ───────────────────────────────────────────────────────────── */
+    .workflow-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: var(--f-radius-4);
+      font-size: 12px;
+      line-height: 18px;
+      border: 1px solid;
+    }
+    .workflow-tag-blue { color: var(--f-tag-tag-blue-text); background: var(--f-tag-tag-blue-bg); border-color: var(--f-tag-tag-blue-border); }
+    .workflow-tag-green { color: var(--f-tag-tag-green-text); background: var(--f-tag-tag-green-bg); border-color: var(--f-tag-tag-green-border); }
+    .workflow-tag-red { color: var(--f-tag-tag-red-text); background: var(--f-tag-tag-red-bg); border-color: var(--f-tag-tag-red-border); }
+    .workflow-tag-purple { color: var(--f-tag-tag-purple-text); background: var(--f-tag-tag-purple-bg); border-color: var(--f-tag-tag-purple-border); }
+
+    /* ─────────────────────────────────────────────────────────────
+       Utility classes
+       ───────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.6rem;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-radius: var(--radius-pill);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .stack-sm > * + * { margin-top: var(--space-2); }
+    .stack-md > * + * { margin-top: var(--space-4); }
+    .stack-lg > * + * { margin-top: var(--space-6); }
+    .text-muted { color: var(--text-secondary); }
+    .text-subtle { color: var(--text-tertiary); }
+    .surface {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--space-5);
+      box-shadow: var(--shadow-1);
+    }
+
+    /* Reduce motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* FROZEN — 协议见 visual-companion.md */
+.mc-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 20px;
+  background-color: var(--f-bg-bg-menu);
+}
+
+/* 覆盖 inline hidden 的隐藏方式，确保 display 与 flex 切换可控 */
+.mc-footer[hidden] {
+  display: none;
+}
+
+.mc-footer-info {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: var(--f-font-weight-regular);
+  color: var(--f-text-text-secondary);
+}
+
+.mc-footer-count {
+  color: var(--f-text-text-default);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: var(--f-font-weight-semibold);
+  margin: 0 2px;
+}
+
+.mc-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--f-spacer-8);
+}
+
+.mc-footer-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--f-spacer-4);
+  height: 32px;
+  padding: 0 var(--f-spacer-16);
+  border: none;
+  border-radius: 8px;
+  background-color: var(--f-bg-bg-invert);
+  color: var(--f-bg-bg-base-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: var(--f-font-weight-semibold);
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.mc-footer-submit:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.mc-footer-submit:active:not(:disabled) {
+  opacity: 0.7;
+}
+
+.mc-footer-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mc-footer-submit-arrow {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+body.has-mc-footer {
+  padding-bottom: 48px;
+}
+
+[data-mc-toggle] {
+  cursor: pointer;
+  user-select: none;
+}
+[data-mc-toggle][aria-disabled='true'],
+[data-mc-toggle][disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+[data-mc-toggle]:focus-visible {
+  outline: 2px solid var(--f-border-border-brand);
+  outline-offset: 2px;
+}
+
+.mc-footer [data-lang="en"] {
+  display: none;
+}
+html[lang="en"] .mc-footer [data-lang="zh"],
+html[lang^="en-"] .mc-footer [data-lang="zh"] {
+  display: none;
+}
+html[lang="en"] .mc-footer [data-lang="en"],
+html[lang^="en-"] .mc-footer [data-lang="en"] {
+  display: inline;
+}
+
+  </style>
+</head>
+<body>
+  <!-- mc-footer 协议文档：skills/design-workflow/visual-companion.md -->
+
+  <div class="main">
+    <div id="claude-content">
+<style>
+  /* 页面外层用 token（随主题切换）；手机内部为「浅色主题产品截图」，故使用规范中定义的浅色固定值 —— 等同于嵌入一张截图 */
+  h2 { font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; font-family: var(--font-display); }
+  h2 .h2-kicker {
+    display: block; font-size: 0.78rem; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--f-status-error-default); margin-bottom: var(--space-2);
+  }
+  .subtitle { max-width: 78ch; }
+  .sec-label {
+    font-size: 0.74rem; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--text-tertiary);
+    margin: var(--space-6) 0 var(--space-4);
+  }
+
+  /* ── 诊断 ── */
+  .diag { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-3); }
+  .dg {
+    border-left: 2px solid var(--f-status-error-default);
+    padding-left: var(--space-4);
+  }
+  .dg h4 { margin: 0 0 var(--space-2); font-size: 0.9rem; font-weight: 650; }
+  .dg p { margin: 0; font-size: 0.82rem; line-height: 1.7; color: var(--text-secondary); }
+  .dg p b { color: var(--text-primary); }
+
+  /* ── 手机（浅色产品截图） ── */
+  .phones { display: grid; grid-template-columns: repeat(auto-fit, minmax(272px, 1fr)); gap: var(--space-5); margin-top: var(--space-4); }
+  .ph {
+    --w: #FFFFFF; --s: #F7F8F9; --m: #EDEFF2;
+    --t1: #1A1D21; --t2: #5B6470; --t3: #8B949E; --bd: #E9EBEE;
+    --mint: #E8F5EE; --mintT: #2E7D5B;
+    --cream: #FBF2E4; --creamT: #A87A28;
+    background: var(--w);
+    border-radius: 26px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 8px 30px rgba(0,0,0,.10);
+    font-family: -apple-system, 'PingFang SC', sans-serif;
+    display: flex; flex-direction: column;
+    min-height: 540px;
+  }
+  .ph-name {
+    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--text-tertiary); margin-bottom: var(--space-2); text-transform: uppercase;
+  }
+  .sbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 11px 20px 3px; font-size: 11px; font-weight: 600; color: var(--t1);
+  }
+  .sbar .ic { display: flex; gap: 3px; align-items: center; }
+  .sbar .ic i { display: block; width: 13px; height: 8px; border: 1px solid var(--t1); border-radius: 2px; opacity: .5 }
+  .body { padding: 0 20px; flex: 1; }
+
+  /* 顶栏 */
+  .nav { display: flex; align-items: center; height: 40px; }
+  .nav svg { width: 18px; height: 18px; stroke: var(--t2); fill: none; stroke-width: 1.6 }
+  .nav .rt { margin-left: auto; font-size: 13px; color: var(--t2); }
+
+  /* 大数 */
+  .stat-hero { padding: 8px 0 22px; }
+  .stat-hero .big { font-size: 40px; font-weight: 700; letter-spacing: -.03em; color: var(--t1); line-height: 1; }
+  .stat-hero .big span { font-size: 17px; font-weight: 500; margin-left: 3px; }
+  .stat-hero .sub { font-size: 13px; color: var(--t3); margin-top: 7px; }
+
+  /* 周点 */
+  .week { display: flex; gap: 5px; margin-top: 14px; }
+  .week i { width: 7px; height: 7px; border-radius: 50%; background: var(--m); display: block; }
+  .week i.on { background: #6BC49B; }
+
+  /* 区标（极简，仅必要时出现） */
+  .lb { font-size: 13px; font-weight: 600; color: var(--t3); margin: 26px 0 12px; }
+
+  /* 素材条目：无边框，封面 + 文字 */
+  .item { margin-bottom: 22px; }
+  .item .cov {
+    width: 100%; aspect-ratio: 16/9; border-radius: 8px; position: relative;
+    background: linear-gradient(120deg,#DCE6F0,#C9D6E4); overflow: hidden;
+  }
+  .item .cov.b { background: linear-gradient(120deg,#E4DCEC,#D2C6DE) }
+  .item .cov.c { background: linear-gradient(120deg,#DDE9E2,#C8DCD0) }
+  .item .cov .bd {
+    position: absolute; left: 8px; top: 8px;
+    background: rgba(255,255,255,.94); color: var(--t1);
+    font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 5px;
+  }
+  .item .cov .dur {
+    position: absolute; right: 8px; bottom: 8px;
+    background: rgba(0,0,0,.55); color: #fff;
+    font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+  }
+  .item h3 { font-size: 16px; font-weight: 600; color: var(--t1); margin: 11px 0 0; line-height: 1.4; letter-spacing: -.01em; }
+  .item .sm { font-size: 14px; color: var(--t2); margin-top: 5px; line-height: 1.5; }
+  .item .mt { font-size: 12px; color: var(--t3); margin-top: 7px; }
+
+  /* 续接 */
+  .resume { display: flex; align-items: center; gap: 9px; padding: 13px 0; border-bottom: 1px solid var(--bd); }
+  .resume svg { width: 15px; height: 15px; stroke: var(--mintT); fill: none; stroke-width: 1.8; flex-shrink: 0 }
+  .resume span { font-size: 14px; color: var(--t1); }
+  .resume em { font-style: normal; color: var(--t3); font-size: 13px }
+
+  /* 报告 */
+  .rp-hero { padding: 14px 0 4px; }
+  .rp-hero .n { font-size: 34px; font-weight: 700; letter-spacing: -.03em; color: var(--t1); line-height: 1 }
+  .rp-hero .n span { font-size: 15px; font-weight: 500; margin-left: 2px }
+  .rp-hero .d { font-size: 13px; color: var(--t3); margin-top: 6px }
+
+  .srcline { display: flex; gap: 10px; align-items: center; padding: 18px 0; }
+  .srcline .c { width: 44px; height: 30px; border-radius: 5px; background: linear-gradient(120deg,#DCE6F0,#C9D6E4); flex-shrink: 0 }
+  .srcline .t { font-size: 14px; font-weight: 500; color: var(--t1); line-height: 1.35 }
+  .srcline .m { font-size: 12px; color: var(--t3); margin-top: 2px }
+
+  .hr { height: 1px; background: var(--bd); }
+
+  .fix { padding: 16px 0; }
+  .fix .said { font-size: 14px; color: var(--t3); }
+  .fix .to { font-size: 16px; color: var(--t1); font-weight: 500; margin-top: 5px; line-height: 1.45 }
+  .fix .to::before { content: '→ '; color: var(--mintT); }
+  .fix .why { font-size: 13px; color: var(--t2); margin-top: 6px; line-height: 1.55 }
+
+  .phr { display: flex; align-items: flex-start; gap: 10px; padding: 11px 0; }
+  .phr .cb { width: 17px; height: 17px; border-radius: 4px; border: 1.5px solid #C9CED5; flex-shrink: 0; margin-top: 1px; }
+  .phr .cb.on { background: var(--mintT); border-color: var(--mintT); position: relative }
+  .phr .cb.on::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 700 }
+  .phr .e { font-size: 15px; font-weight: 500; color: var(--t1); line-height: 1.4 }
+  .phr .z { font-size: 12px; color: var(--t3); margin-top: 2px }
+
+  .foldln { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; font-size: 14px; color: var(--t2) }
+  .foldln svg { width: 14px; height: 14px; stroke: var(--t3); fill: none; stroke-width: 2 }
+
+  /* 底部动作 */
+  .btm { padding: 14px 20px 20px; }
+  .bt-main { text-align: center; padding: 14px; border-radius: 10px; background: #2E7D5B; color: #fff; font-size: 16px; font-weight: 600 }
+  .bt-exit { text-align: center; font-size: 15px; color: var(--t2); padding-top: 14px }
+
+  /* 热力图 */
+  .hm { display: grid; grid-template-columns: repeat(13,1fr); gap: 4px; margin-top: 4px }
+  .hm i { aspect-ratio: 1; border-radius: 3px; display: block; background: var(--m) }
+  .q1 { background: #D6EDE0 !important } .q2 { background: #A8DCC2 !important }
+  .q3 { background: #6BC49B !important } .q4 { background: #2E7D5B !important }
+  .hm-act { display: flex; justify-content: flex-end; margin-top: 14px }
+  .hm-act span { font-size: 14px; font-weight: 600; color: var(--mintT); border: 1px solid #C6E3D4; border-radius: 8px; padding: 7px 14px }
+
+  .bar { display: flex; align-items: center; gap: 10px; padding: 9px 0 }
+  .bar .bn { font-size: 14px; color: var(--t1); width: 76px; flex-shrink: 0 }
+  .bar .bt { flex: 1; height: 4px; border-radius: 999px; background: var(--m); overflow: hidden }
+  .bar .bt i { display: block; height: 100%; background: #6BC49B }
+  .bar .bv { font-size: 13px; color: var(--t3); width: 18px; text-align: right }
+
+  /* tabbar */
+  .tabs { display: flex; border-top: 1px solid var(--bd); padding: 8px 0 6px; background: var(--w) }
+  .tab { flex: 1; text-align: center; }
+  .tab svg { width: 21px; height: 21px; stroke: #A8AFB8; fill: none; stroke-width: 1.7 }
+  .tab.on svg { stroke: #2E7D5B }
+  .tab span { display: block; font-size: 10px; color: #A8AFB8; margin-top: 2px }
+  .tab.on span { color: #2E7D5B; font-weight: 600 }
+
+  /* ── 文案对照表 ── */
+  table { font-size: 0.83rem; }
+  .old-c { color: var(--f-tag-tag-red-text); }
+  .new-c { color: var(--f-tag-tag-green-text); font-weight: 600; }
+  td.rz { color: var(--text-tertiary); font-size: 0.78rem }
+
+  .note {
+    border-left: 2px solid var(--f-accent-accent-teal);
+    padding-left: var(--space-4); margin: var(--space-4) 0;
+  }
+  .note h4 { margin: 0 0 var(--space-2); font-size: 0.9rem; font-weight: 650; }
+  .note p { margin: 0 0 var(--space-2); font-size: 0.84rem; line-height: 1.7; color: var(--text-secondary); }
+  .note p:last-child { margin-bottom: 0 }
+  .note p b { color: var(--text-primary) }
+  .note ul { margin: var(--space-2) 0 0; padding-left: var(--space-5) }
+  .note li { font-size: 0.83rem; line-height: 1.7; color: var(--text-secondary); margin-bottom: 5px }
+  .note li b { color: var(--text-primary) }
+</style>
+
+<h2><span class="h2-kicker">重做 · 浅色主题</span>问题不是 UI 不好看，是界面在自我解说</h2>
+<p class="subtitle">你第 3 条点到了根子上。我复盘后确认：我一直在画<b>说明图</b>而不是<b>产品界面</b> —— 给每个区块加标签、用完整句子当文案、加图例解释、让界面替 AI 说话。<b>真实产品不解释自己。</b>下面先诊断成因，再给浅色重做版。</p>
+
+<div class="sec-label">Demo 味的四个来源（我的问题）</div>
+<div class="diag">
+  <div class="dg">
+    <h4>① 界面在替 AI 说话</h4>
+    <p>「你做到了」「换个说法会更自然」「前两天空着」——这些都是<b>AI 在旁白</b>。真实产品里，鼓励属于<b>对话</b>（教练口中很自然），不属于<b>界面文案</b>（变成机器拍你肩膀）。</p>
+  </div>
+  <div class="dg">
+    <h4>② 每个区块都挂标签</h4>
+    <p>我给每一段都加了小标题。真实产品<b>省略一切能被看懂的标签</b> —— 热力图不需要「最近 6 周」，图例更不需要，纠错列表不需要标题。</p>
+  </div>
+  <div class="dg">
+    <h4>③ 用完整句子当 UI 文案</h4>
+    <p>「松开即发送 · 说错随时可以再说」「找到好内容，比逼自己坚持更有用」—— 后者是<b>产品宣言</b>，不该出现在界面里。UI 文案应是<b>名词或短动词</b>。</p>
+  </div>
+  <div class="dg">
+    <h4>④ 容器铺满每一寸</h4>
+    <p>即使 v2 去掉了卡片，我仍用边框把内容框住、并把版面填满。真实移动端是<b>内容直接贴在背景上、通体留白、几乎无边框</b>。</p>
+  </div>
+</div>
+
+<div class="sec-label">浅色重做版（三页）</div>
+
+<div class="phones">
+
+  <!-- 首页 -->
+  <div>
+    <div class="ph-name">首页</div>
+    <div class="ph">
+      <div class="sbar"><span>9:41</span><span class="ic"><i></i></span></div>
+      <div class="body">
+        <div class="stat-hero">
+          <div class="big">12<span>天</span></div>
+          <div class="sub">累计 28 次</div>
+          <div class="week"><i class="on"></i><i class="on"></i><i></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+        </div>
+
+        <div class="resume">
+          <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>
+          <span>AI 芯片竞赛 <em>· 4:12</em></span>
+        </div>
+
+        <div class="lb">今日推荐</div>
+
+        <div class="item">
+          <div class="cov"><span class="bd">3 分钟</span><span class="dur">2:40</span></div>
+          <h3>Why AI chips are so hard to make</h3>
+          <div class="sm">两分半讲清芯片制造的三个瓶颈</div>
+          <div class="mt">易 · 语速慢 · YouTube</div>
+        </div>
+
+        <div class="item">
+          <div class="cov b"><span class="dur">14:20</span></div>
+          <h3>The economics behind K-pop tours</h3>
+          <div class="sm">巡演的成本结构与盈利模式</div>
+          <div class="mt">中 · 语速中 · Apple Podcasts</div>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab on"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>首页</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><span>数据</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>社区</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>我的</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 学习报告 -->
+  <div>
+    <div class="ph-name">学习报告</div>
+    <div class="ph">
+      <div class="sbar"><span>9:47</span><span class="ic"><i></i></span></div>
+      <div class="body">
+        <div class="nav">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          <span class="rt">分享</span>
+        </div>
+
+        <div class="rp-hero">
+          <div class="n">6<span>分钟</span></div>
+          <div class="d">今天第 3 次 · 累计 29 次</div>
+        </div>
+
+        <div class="srcline">
+          <div class="c"></div>
+          <div>
+            <div class="t">Why AI chips are so hard to make</div>
+            <div class="m">YouTube · 看了 42%</div>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="fix">
+          <div class="said">why make AI chip is difficult</div>
+          <div class="to">why AI chips are so hard to make</div>
+          <div class="why">母语者更常说 hard to make，比 difficult 口语。</div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="fix">
+          <div class="said">the machine is very expensive</div>
+          <div class="to">the equipment costs a fortune</div>
+          <div class="why">聊价格时的常用说法。</div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="lb" style="margin-top:18px">收藏表达</div>
+        <div class="phr">
+          <span class="cb on"></span>
+          <div><div class="e">It's hard to make.</div><div class="z">这东西很难造</div></div>
+        </div>
+        <div class="phr">
+          <span class="cb on"></span>
+          <div><div class="e">It costs a fortune.</div><div class="z">贵得要命</div></div>
+        </div>
+        <div class="phr">
+          <span class="cb"></span>
+          <div><div class="e">What surprised me was…</div><div class="z">让我意外的是…</div></div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="foldln"><span>对话记录</span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+      </div>
+      <div class="btm">
+        <div class="bt-main">再学一条</div>
+        <div class="bt-exit">完成</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据页 -->
+  <div>
+    <div class="ph-name">数据</div>
+    <div class="ph">
+      <div class="sbar"><span>9:52</span><span class="ic"><i></i></span></div>
+      <div class="body">
+        <div class="stat-hero">
+          <div class="big">13<span>天</span></div>
+          <div class="sub">累计 29 次 · 4 小时 12 分</div>
+        </div>
+
+        <div class="hm">
+          <i class="q2"></i><i></i><i class="q1"></i><i class="q3"></i><i class="q1"></i><i class="q2"></i><i></i><i class="q4"></i><i class="q1"></i><i class="q2"></i><i class="q3"></i><i></i><i class="q1"></i>
+          <i class="q2"></i><i class="q1"></i><i class="q3"></i><i></i><i class="q2"></i><i class="q4"></i><i class="q1"></i><i class="q2"></i><i class="q3"></i><i></i><i class="q1"></i><i class="q2"></i><i class="q1"></i>
+          <i class="q3"></i><i></i><i class="q1"></i><i class="q2"></i><i class="q1"></i><i class="q3"></i><i class="q2"></i><i class="q2"></i><i class="q4"></i><i class="q1"></i><i></i><i class="q2"></i><i class="q3"></i>
+          <i class="q1"></i><i class="q2"></i><i></i><i></i><i class="q3"></i><i class="q2"></i><i class="q1"></i><i class="q2"></i><i class="q1"></i><i class="q3"></i><i class="q4"></i><i class="q2"></i><i class="q1"></i>
+        </div>
+        <div class="hm-act"><span>去补卡</span></div>
+
+        <div class="lb">主题</div>
+        <div class="bar"><span class="bn">AI 与科技</span><span class="bt"><i style="width:72%"></i></span><span class="bv">11</span></div>
+        <div class="bar"><span class="bn">KPOP</span><span class="bt"><i style="width:48%"></i></span><span class="bv">7</span></div>
+        <div class="bar"><span class="bn">商业财经</span><span class="bt"><i style="width:33%"></i></span><span class="bv">5</span></div>
+        <div class="bar"><span class="bn">科普</span><span class="bt"><i style="width:20%"></i></span><span class="bv">3</span></div>
+      </div>
+      <div class="tabs">
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>首页</span></div>
+        <div class="tab on"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><span>数据</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>社区</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>我的</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="note">
+  <h4>这版具体改了什么</h4>
+  <ul>
+    <li><b>零容器边框</b>：内容直接贴在白底上，只有必要处一条 1px 分割线。封面图是唯一有圆角的元素</li>
+    <li><b>标签砍掉八成</b>：只剩「今日推荐」「收藏表达」「主题」三个。热力图无标签、无图例；纠错列表无标题</li>
+    <li><b>首屏只有一个焦点</b>：40px 的大数字「12 天」，其余全部降级。原来三个数并列，等于没有重点</li>
+    <li><b>emoji 换成线性图标</b>：原来用 🎙 ◉ ▦ 当图标，这是 demo 味的重灾区</li>
+    <li><b>加了状态栏</b>：真实截图有时间和电量，缺了就像设计稿</li>
+    <li><b>时长挪到封面右下角</b>：这是内容型 App 的通行做法，比排在文字里更易扫读</li>
+  </ul>
+</div>
+
+<div class="sec-label">文案逐条重写</div>
+<table>
+  <thead><tr><th>位置</th><th>原文案</th><th>改为</th><th>为什么</th></tr></thead>
+  <tbody>
+    <tr><td>报告页</td><td class="old-c">你做到了 + ✓ 一句话就说清了主题</td><td class="new-c">整块删除</td><td class="rz">AI 旁白式表扬。鼓励放在语音对话里说，界面不复述</td></tr>
+    <tr><td>报告页</td><td class="old-c">换个说法会更自然</td><td class="new-c">无标题，直接列</td><td class="rz">「你说的 → 更好的说法」结构自明，不需要句子解释</td></tr>
+    <tr><td>报告页</td><td class="old-c">下次可以直接用</td><td class="new-c">收藏表达</td><td class="rz">名词短语替代承诺句</td></tr>
+    <tr><td>报告页</td><td class="old-c">今天完成了</td><td class="new-c">6 分钟 / 今天第 3 次</td><td class="rz">用数据代替宣告，更克制也更有信息量</td></tr>
+    <tr><td>报告页</td><td class="old-c">对话文字稿（6 轮）</td><td class="new-c">对话记录</td><td class="rz">轮次是内部概念，用户不关心</td></tr>
+    <tr><td>报告页</td><td class="old-c">回到首页 / 看我的记录</td><td class="new-c">完成</td><td class="rz">一个退出足够，两个反而要做选择</td></tr>
+    <tr><td>数据页</td><td class="old-c">前两天空着 + 今天再学一次就能补上…</td><td class="new-c">去补卡（按钮）</td><td class="rz">按你的意见改。界面不评论用户的缺勤</td></tr>
+    <tr><td>数据页</td><td class="old-c">最深的格子是 3 月 12 日，那天学了 34 分钟</td><td class="new-c">整句删除</td><td class="rz">典型 AI 旁白。点格子看详情即可</td></tr>
+    <tr><td>数据页</td><td class="old-c">少 ▪▪▪▪ 多 / 按当日学习时长</td><td class="new-c">整块删除</td><td class="rz">按你的意见改，热力图人人都懂</td></tr>
+    <tr><td>数据页</td><td class="old-c">最近 6 周 / 你在看什么</td><td class="new-c">删 / 主题</td><td class="rz">前者看得出来，后者用名词</td></tr>
+    <tr><td>首页</td><td class="old-c">今天为你找到</td><td class="new-c">今日推荐</td><td class="rz">「为你」是 AI 口吻</td></tr>
+    <tr><td>首页</td><td class="old-c">换一批（今天还剩 2 次）／想看点别的？输入一个话题</td><td class="new-c">换一批 / 搜索框占位「搜主题」</td><td class="rz">配额提示移到点击后再说；不用疑问句</td></tr>
+    <tr><td>首页</td><td class="old-c">继续上次：AI 芯片竞赛 · 看到 4:12</td><td class="new-c">AI 芯片竞赛 · 4:12</td><td class="rz">回箭头图标已表达「继续」</td></tr>
+    <tr><td>复述页</td><td class="old-c">教练正在说</td><td class="new-c">删除</td><td class="rz">声波动画已经说明谁在说</td></tr>
+    <tr><td>复述页</td><td class="old-c">松开即发送 · 说错随时可以再说</td><td class="new-c">首次出现后不再显示</td><td class="rz">操作提示只教一次</td></tr>
+    <tr><td>复述页</td><td class="old-c">卡住了？让教练给个开头</td><td class="new-c">提示</td><td class="rz">按钮用一个词</td></tr>
+    <tr><td>复述页</td><td class="old-c">结束对话，看这次的总结</td><td class="new-c">结束</td><td class="rz">后半句是解释</td></tr>
+    <tr><td>社区页</td><td class="old-c">别人在看什么 + 找到好内容，比逼自己坚持更有用</td><td class="new-c">发现</td><td class="rz">副标题是产品宣言，不该进界面</td></tr>
+    <tr><td>社区页</td><td class="old-c">推荐你发现的好内容 + 审核通过后会进入公共素材库…</td><td class="new-c">推荐（图标按钮）</td><td class="rz">规则说明移到点击后的页面</td></tr>
+    <tr><td>消费页</td><td class="old-c">还没看完，要不要先看完？效果会更好</td><td class="new-c">还没看完</td><td class="rz">保留提示，去掉劝导</td></tr>
+    <tr><td>我的页</td><td class="old-c">当前水平 B1 · 可修改</td><td class="new-c">B1</td><td class="rz">可点击本身就表示可改</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <h4>一条要提请你注意的取舍</h4>
+  <p>报告页的「你做到了」整块删掉后，<b>正向反馈在界面上消失了</b>。这跟「不要 PUA 自己」的理念看似冲突，但我认为方向是对的 —— <b>鼓励应该来自教练的声音，而不是界面的文字</b>。真人教练会在对话里说 "That was clear"，但不会给你发一张写着「你做到了」的卡片。</p>
+  <p>如果你觉得报告里还是需要一点正向内容，我的建议是<b>放在教练的一句话里</b>（作为报告开头的一句引语，署名教练），而不是做成界面区块。要不要加，你定。</p>
+</div>
+
+<div class="note">
+  <h4>我自查出的另外三处 demo 味（尚未改）</h4>
+  <ul>
+    <li><b>封面用渐变色块</b>：这是最大的一处。真实产品的封面是真实缩略图，渐变占位一眼就是设计稿。原型阶段建议接真实图源</li>
+    <li><b>示例数据太整齐</b>：「12 天 / 28 次 / 4 小时 12 分」像编的。真实数据是「13 天 / 47 次 / 6 小时 03 分」这种不规整的数</li>
+    <li><b>缺少真实的空态与首次态</b>：我一直画的是「已用一段时间」的满态。新用户看到的第一屏我还没设计过 —— 而这恰恰是决定首次复述完成率的那一屏</li>
+  </ul>
+</div>
+    </div>
+  </div>
+
+  <!-- FROZEN — 协议见 visual-companion.md -->
+<footer id="mc-footer" class="mc-footer" hidden>
+  <div class="mc-footer-info">
+    <span data-lang="zh">已选：</span>
+    <span data-lang="en">Selected:&nbsp;</span>
+    <span id="mc-footer-count" class="mc-footer-count">0</span>
+    <span data-lang="zh">项</span>
+    <span data-lang="en">&nbsp;items</span>
+  </div>
+  <div class="mc-footer-actions">
+    <button id="mc-footer-submit" type="button" class="mc-footer-submit">
+      <span class="mc-footer-submit-arrow">→</span>
+      <span class="mc-footer-submit-text" data-lang="zh">继续</span>
+      <span class="mc-footer-submit-text" data-lang="en">Continue</span>
+    </button>
+  </div>
+</footer>
+
+  <script>
+    (function () {
+      'use strict';
+      var HOST_SOURCE = 'workflow-host';
+
+      function handleEnvUpdate(payload) {
+        if (payload.theme) {
+          document.documentElement.setAttribute('data-theme', payload.theme);
+        }
+        if (payload.lang) {
+          document.documentElement.lang = payload.lang;
+        }
+      }
+
+      window.sendToHost = function (type, payload, source) {
+        window.parent.postMessage(
+          {
+            source: source || 'workflow-iframe',
+            type: type,
+            payload: payload,
+          },
+          '*',
+        );
+      };
+
+      window.addEventListener('message', function (e) {
+        var msg = e.data;
+        if (!msg || msg.source !== HOST_SOURCE) return;
+        if (msg.type === 'ENV_UPDATE') {
+          handleEnvUpdate(msg.payload);
+        }
+      });
+
+      window.sendToHost('REQUEST_ENV', null);
+    })();
+  </script>
+  <script>
+/* FROZEN — 协议见 visual-companion.md */
+(function initMindCanvasFooter() {
+  'use strict';
+
+  var footer = document.getElementById('mc-footer');
+  /* 纯静态页：AI 已删除 footer，跳过初始化 */
+  if (!footer) return;
+
+  var countEl = document.getElementById('mc-footer-count');
+  var submitBtn = document.getElementById('mc-footer-submit');
+  if (!countEl || !submitBtn) return;
+
+  /* 标记用户是否做出过任何操作（用于 footer 显隐门槛，避免 AI 预设值
+     导致页面一加载就出现 footer） */
+  var hasUserInteracted = false;
+
+  /* 外部（宿主）下发的「继续」按钮禁用态。
+     宿主协议：
+       host → iframe:
+         { source: 'workflow-host', type: 'CANVAS_FOOTER_STATE',
+           payload: { disabled: boolean } } */
+  var HOST_SOURCE = 'workflow-host';
+  var externallyDisabled = false;
+
+  /** 根据外部禁用态刷新 submit 按钮，独立于 400ms 点击防抖 */
+  function applySubmitDisabled() {
+    submitBtn.disabled = externallyDisabled;
+  }
+
+  /** 标记用户已交互，并刷新 footer */
+  function markInteracted() {
+    hasUserInteracted = true;
+    refresh();
+  }
+
+  /** 当前已被有效作答的「问题数」（不是控件数；多选选 N 个仍算 1 题） */
+  function countAnsweredQuestions() {
+    return gatherAnswers().length;
+  }
+
+  function refresh() {
+    var answered = countAnsweredQuestions();
+    countEl.textContent = String(answered);
+    if (hasUserInteracted && answered > 0) {
+      footer.hidden = false;
+      document.body.classList.add('has-mc-footer');
+    } else {
+      footer.hidden = true;
+      document.body.classList.remove('has-mc-footer');
+    }
+  }
+
+  /* click 事件：用户点击 .option / .card 才触发 footer 显示
+     （helper.js 的 toggleSelect 已经负责切换 .selected 状态，这里只需感知交互） */
+  document.addEventListener(
+    'click',
+    function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      if (t.closest('.option, .card')) {
+        /* 等到下一帧再 refresh，确保 toggleSelect 的 classList 改动已落到 DOM */
+        setTimeout(markInteracted, 0);
+      }
+    },
+    true,
+  );
+
+  /** 收集所有 .options[data-question] / .cards[data-question] 的有效作答 */
+  function gatherAnswers() {
+    var lines = [];
+    var questions = document.querySelectorAll(
+      '.options[data-question], .cards[data-question]',
+    );
+    for (var i = 0; i < questions.length; i++) {
+      var q = questions[i];
+      var qText = (q.getAttribute('data-question') || '').trim();
+      if (!qText) continue;
+      var values = [];
+      var selected = q.querySelectorAll('.option.selected, .card.selected');
+      for (var j = 0; j < selected.length; j++) {
+        var el = selected[j];
+        var label = (el.getAttribute('data-label') || '').trim();
+        if (!label) {
+          var h3 = el.querySelector('h3');
+          if (h3 && h3.textContent) label = h3.textContent.trim();
+        }
+        if (!label) label = (el.getAttribute('data-choice') || '').trim();
+        if (label) values.push(label);
+      }
+      if (values.length) {
+        lines.push(qText + ': ' + values.join('、'));
+      }
+    }
+    return lines;
+  }
+
+  submitBtn.addEventListener('click', function () {
+    var lines = gatherAnswers();
+    if (!lines.length) return; /* 无有效作答时不上抛 */
+    /* 外部禁用时仍走 gatherAnswers 用以更新数据/计数，仅跳过对宿主的回传 */
+    if (!externallyDisabled && typeof window.sendToHost === 'function') {
+      /* 兜底：fragment 脱离 frame-template 直接预览时 sendToHost 可能未注入；
+         不抛异常，保留按钮防抖以免用户连点 */
+      try {
+        window.sendToHost('CANVAS_SELECTION_SUBMIT', { data: lines.join(' ; ') });
+      } catch (_) {
+        /* 静默失败，宿主通信问题不应阻断 UI */
+      }
+    }
+    submitBtn.disabled = true;
+    setTimeout(function () {
+      /* 防抖恢复时尊重外部禁用态，避免覆盖宿主下发的 disabled */
+      submitBtn.disabled = externallyDisabled;
+    }, 400);
+  });
+
+  /* 监听宿主下发的 footer 状态消息，实时切换「继续」按钮禁用态 */
+  window.addEventListener('message', function (e) {
+    var msg = e.data;
+    if (!msg || msg.source !== HOST_SOURCE) return;
+    if (msg.type === 'CANVAS_FOOTER_STATE') {
+      var payload = msg.payload;
+      externallyDisabled = Boolean(payload && payload.disabled);
+      applySubmitDisabled();
+    }
+  });
+
+  /* 初始化扫描：快速确认等场景会预先把推荐项渲染为 .selected，没有 click
+     事件触发；若已存在「真实选择题（.options[data-question] / .cards[data-question]）
+     内的预选」，视为已完成首次交互，直接展示 footer 让用户可一键继续。
+     纯装饰用途的 .selected（容器无 data-question）不会触发。 */
+  if (gatherAnswers().length > 0) {
+    markInteracted();
+  }
+})();
+</script>
+<script>
+(function() {
+  var WS_URL = 'ws://' + window.location.host + '/ws';
+  var ws = null;
+  var eventQueue = [];
+  var _current = 0;
+
+  /* ── Page navigation (individual pages, not continuous scroll) ── */
+
+  function getSections() {
+    return Array.from(document.querySelectorAll('.content-section'));
+  }
+
+  function show(index) {
+    var sections = getSections();
+    if (sections.length === 0) return;
+    index = Math.max(0, Math.min(index, sections.length - 1));
+
+    sections.forEach(function(s, i) {
+      s.classList.toggle('active', i === index);
+    });
+    _current = index;
+
+    var pageCount = document.getElementById('nav-page-count');
+    var btnUp    = document.getElementById('nav-btn-up');
+    var btnDown  = document.getElementById('nav-btn-down');
+    if (pageCount) pageCount.textContent = (_current + 1) + '/' + sections.length;
+    if (btnUp)    btnUp.disabled    = _current === 0;
+    if (btnDown)  btnDown.disabled  = _current === sections.length - 1;
+
+    try {
+      sessionStorage.setItem('workflow-page-index', String(_current));
+      sessionStorage.setItem('workflow-page-count', String(sections.length));
+    } catch (_) {}
+  }
+
+  function initPageNav() {
+    var sections = getSections();
+
+    // Wire up the up/down buttons already in the HTML
+    var btnUp   = document.getElementById('nav-btn-up');
+    var btnDown = document.getElementById('nav-btn-down');
+    if (btnUp)   btnUp.addEventListener('click',   function() { show(_current - 1); });
+    if (btnDown) btnDown.addEventListener('click', function() { show(_current + 1); });
+
+    // Decide which page to show: restore position, or jump to newest section
+    var startIndex = 0;
+    if (sections.length > 0) {
+      try {
+        var savedCount = parseInt(sessionStorage.getItem('workflow-page-count') || '0', 10);
+        var savedIndex = parseInt(sessionStorage.getItem('workflow-page-index') || '0', 10);
+        if (sections.length > savedCount) {
+          // New section(s) added, or no prior state (e.g. app restart) — jump to the latest one
+          startIndex = sections.length - 1;
+        } else if (savedIndex < sections.length) {
+          startIndex = savedIndex;
+        }
+      } catch (_) {}
+      show(startIndex);
+    }
+  }
+
+  /* ── WebSocket ────────────────────────────────────────────────── */
+
+  function connect() {
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = function() {
+      eventQueue.forEach(function(e) { ws.send(JSON.stringify(e)); });
+      eventQueue = [];
+    };
+
+    ws.onmessage = function(msg) {
+      try {
+        var data = JSON.parse(msg.data);
+        if (data.type === 'reload') {
+          var path = window.location.pathname;
+          var isLatest = path === '/latest' || path === '/';
+          var isViewingFile = path === '/content/' + data.file;
+          if (isLatest || isViewingFile) {
+            window.location.reload();
+          }
+        }
+      } catch (_) {}
+    };
+
+    ws.onclose = function() {
+      setTimeout(connect, 1000);
+    };
+  }
+
+  /* ── Click / select events ────────────────────────────────────── */
+
+  function sendEvent(event) {
+    event.timestamp = Date.now();
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(event));
+    } else {
+      eventQueue.push(event);
+    }
+  }
+
+  document.addEventListener('click', function(e) {
+    var target = e.target.closest('[data-choice]');
+    if (!target) return;
+
+    sendEvent({
+      type: 'click',
+      text: target.textContent.trim(),
+      choice: target.dataset.choice,
+      id: target.id || null
+    });
+
+    setTimeout(function() {
+      var indicator = document.getElementById('indicator-text');
+      if (!indicator) return;
+      var container = target.closest('.options') || target.closest('.cards');
+      var selected = container ? container.querySelectorAll('.selected') : [];
+      if (selected.length === 0) {
+        indicator.textContent = 'Click an option above, then return to the terminal';
+      } else if (selected.length === 1) {
+        var labelEl = selected[0].querySelector('h3, .content h3, .card-body h3');
+        var label = (labelEl ? labelEl.textContent.trim() : null) || selected[0].dataset.choice;
+        indicator.innerHTML = '<span class="selected-text">' + label + ' selected</span> — return to terminal to continue';
+      } else {
+        indicator.innerHTML = '<span class="selected-text">' + selected.length + ' selected</span> — return to terminal to continue';
+      }
+    }, 0);
+  });
+
+  window.selectedChoice = null;
+
+  window.toggleSelect = function(el) {
+    var container = el.closest('.options') || el.closest('.cards');
+    var multi = container && container.dataset.multiselect !== undefined;
+    if (container && !multi) {
+      container.querySelectorAll('.option, .card').forEach(function(o) {
+        o.classList.remove('selected');
+        if (o !== el) o.classList.remove('recommended');
+      });
+    }
+    if (multi) {
+      el.classList.toggle('selected');
+    } else {
+      el.classList.add('selected');
+    }
+    window.selectedChoice = el.dataset.choice;
+  };
+
+  window.brainstorm = {
+    send: sendEvent,
+    choice: function(value, metadata) {
+      sendEvent(Object.assign({ type: 'choice', value: value }, metadata || {}));
+    }
+  };
+
+  /* ── Boot ─────────────────────────────────────────────────────── */
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPageNav);
+  } else {
+    initPageNav();
+  }
+
+  connect();
+})();
+</script>
+</body>
+</html>
